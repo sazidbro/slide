@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>স্লাইড স্টুডিও — কোচিং সেন্টারের জন্য দ্রুত স্লাইড বানান</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;600;700;800&family=Noto+Serif+Bengali:wght@400;600;700;800&family=Anek+Bangla:wght@400;600;700;800&family=Baloo+Da+2:wght@400;600;700;800&family=Tiro+Bangla&family=Mina:wght@400;700&family=Atma:wght@400;600;700&family=Galada&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PptxGenJS/3.12.0/pptxgen.bundle.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+/* =====================================================
+   অ্যাপের ইন্টারফেস — মোবাইল আগে, তারপর ট্যাব ও কম্পিউটার
+   ===================================================== */
+:root{--ink:#14213d;--muted:#5b6b82;--line:#d6dde8;--panel:#fff;--bg:#e8ecf2;--brand:#1f4fd8;--gold:#ffb703}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:'Hind Siliguri','Noto Sans Bengali',sans-serif;background:var(--bg);color:var(--ink);font-size:15px;min-height:100vh}
+button,input,select,textarea{font-family:inherit}
+button{cursor:pointer}
+.top{position:relative;z-index:50;display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--ink);color:#fff;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:8px;margin-right:4px}
+.brand svg{flex:none}
+.brand h1{font-size:18px;margin:0;font-weight:700;white-space:nowrap}
+.top input#deckName{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:6px 10px;flex:1;min-width:110px;max-width:220px;font-size:14px}
+.sp{flex:1}
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:8px;padding:7px 12px;font-size:14px;font-weight:600;line-height:1.3;white-space:nowrap}
+.btn:hover{background:#f2f5fa}
+.top .btn{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.25)}
+.top .btn:hover{background:rgba(255,255,255,.2)}
+.btn.gold,.top .btn.gold{background:var(--gold);border-color:var(--gold);color:#241800}
+.btn.gold:hover{background:#ffc93a}
+.btn.sm{padding:4px 9px;font-size:13px}
+.btn.danger{color:#b3261e}
+.btn.block{display:block;width:100%;text-align:center}
+.menu{position:fixed;background:#fff;color:var(--ink);border-radius:12px;box-shadow:0 14px 44px rgba(10,20,40,.32);padding:12px;width:min(300px,calc(100vw - 16px));z-index:90;display:none;max-height:80vh;overflow:auto}
+.menu.open{display:block}
+.menu .btn{display:block;width:100%;text-align:left;margin-top:6px}
+.menu label.l{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
+.menu select{width:100%;padding:7px;border-radius:8px;border:1px solid var(--line)}
+.menu small{display:block;color:var(--muted);margin-top:10px;line-height:1.5;font-size:12.5px}
+.menu hr{border:0;border-top:1px solid var(--line);margin:10px 0 4px}
+
+/* মূল কাঠামো (মোবাইল/ট্যাব): উপরে প্রিভিউ (স্ক্রলে আটকে থাকে) → স্লাইড তালিকা → এডিটর */
+.app{display:grid;grid-template-columns:minmax(0,1fr);grid-template-areas:"center" "left" "right"}
+.center{grid-area:center;position:sticky;top:0;z-index:30;background:var(--bg);border-bottom:1px solid var(--line);box-shadow:0 4px 14px rgba(10,20,40,.10)}
+.left{grid-area:left;background:var(--panel);border-bottom:1px solid var(--line)}
+.right{grid-area:right;background:var(--panel)}
+#stage{display:flex;align-items:center;justify-content:center;padding:6px 8px;overflow:hidden}
+#holder{position:relative;box-shadow:0 8px 28px rgba(10,20,40,.35);border-radius:3px;overflow:hidden;flex:none}
+#stage-inner{transform-origin:0 0;position:absolute;left:0;top:0;width:1280px;height:720px}
+.navrow{display:flex;justify-content:center;align-items:center;gap:12px;padding:2px 0 8px;color:var(--muted);font-size:14px}
+.adds{padding:10px 12px;border-bottom:1px solid var(--line)}
+.adds b{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;font-weight:600}
+.adds .chips{display:flex;flex-wrap:wrap;gap:6px}
+.adds .btn.wide{margin-top:8px;width:100%}
+#thumbs{position:relative;display:flex;gap:12px;overflow-x:auto;padding:12px;-webkit-overflow-scrolling:touch}
+.th-item{position:relative;flex:none;width:184px}
+.th-n{position:absolute;left:6px;top:6px;z-index:2;background:rgba(20,33,61,.88);color:#fff;font-size:11px;border-radius:999px;padding:0 7px}
+.th-box{width:184px;height:103.5px;overflow:hidden;position:relative;border-radius:6px;outline:3px solid transparent;box-shadow:0 1px 5px rgba(0,0,0,.28);cursor:pointer}
+.th-item.on .th-box{outline-color:var(--brand)}
+.th-item.drag .th-box{opacity:.45}
+.th-sc{transform:scale(.14375);transform-origin:0 0;width:1280px;height:720px;pointer-events:none}
+.th-tools{display:flex;gap:4px;margin-top:5px}
+.th-tools button{border:1px solid var(--line);background:#fff;border-radius:6px;font-size:12px;padding:2px 8px;color:var(--muted)}
+.th-tools button:hover{background:#eef2f9;color:var(--ink)}
+.tabs{display:flex;border-bottom:1px solid var(--line);background:#fff;position:relative}
+.tabs button{flex:1;border:0;background:none;padding:13px 4px;font-weight:600;font-size:15px;color:var(--muted);border-bottom:3px solid transparent}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--gold)}
+#panel-body{padding:14px 14px 60px;max-width:720px;margin:0 auto;width:100%}
+.f{display:block;margin:0 0 12px}
+.f>span{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+.f input[type=text],.f textarea,.f select{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:16px;background:#fff;color:var(--ink)}
+.f textarea{resize:vertical;line-height:1.4}
+.f input[type=range]{width:100%}
+.f input[type=color]{width:100%;height:38px;border:1px solid var(--line);border-radius:8px;padding:2px;background:#fff}
+.f.chk{display:flex;align-items:center;gap:8px}
+.f.chk input{width:20px;height:20px}
+.f.chk span{margin:0;color:var(--ink);font-size:14px}
+.f em{font-style:normal;color:var(--ink);font-weight:600}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.card{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:12px;background:#fafbfd}
+.card-h{display:flex;justify-content:space-between;align-items:center;font-weight:700;margin-bottom:8px}
+.hint{font-size:13px;color:var(--muted);line-height:1.55;background:#f3f6fb;border-radius:8px;padding:9px 11px;margin-bottom:12px}
+.h4{font-weight:700;margin:18px 0 8px;font-size:14px;padding-top:12px;border-top:1px solid var(--line)}
+.h4.first{margin-top:0;padding-top:0;border-top:0}
+.imgf .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.imgf img{height:38px;max-width:70px;object-fit:contain;border:1px solid var(--line);border-radius:6px;background:#fff}
+.imgf input[type=file]{font-size:13px;max-width:100%}
+.themes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.themes button{border:2px solid var(--line);border-radius:10px;padding:0;overflow:hidden;background:#fff;text-align:left}
+.themes button.on{border-color:var(--brand)}
+.themes i{display:block;height:34px}
+.themes span{display:block;padding:4px 8px;font-size:13px;font-weight:600}
+.modal{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(10,20,40,.6);display:none;align-items:center;justify-content:center;z-index:95;padding:12px}
+.modal.on{display:flex}
+.modal .box{background:#fff;border-radius:14px;width:min(680px,100%);max-height:92vh;overflow:auto;padding:16px}
+.modal h3{margin:0 0 8px}
+.modal pre{background:#f3f6fb;border-radius:8px;padding:10px;font-family:inherit;font-size:13.5px;line-height:1.5;white-space:pre-wrap;margin:0 0 10px}
+.modal textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:16px;line-height:1.5;margin-bottom:8px}
+.modal .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+#busy{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(10,20,40,.6);display:none;align-items:center;justify-content:center;z-index:99;color:#fff;font-size:20px;font-weight:600}
+#busy.on{display:flex}
+#busy div{background:var(--ink);padding:22px 34px;border-radius:14px;text-align:center}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:10px;z-index:100;display:none;max-width:92vw;text-align:center}
+#pres{position:fixed;left:0;top:0;right:0;bottom:0;background:#000;z-index:120;display:none}
+#pres.on{display:block}
+#pres-in{transform-origin:0 0;position:absolute;left:0;top:0;width:1280px;height:720px}
+.pres-hint{position:absolute;right:14px;bottom:10px;color:#fff8;font-size:13px}
+#exportStage{position:fixed;left:-20000px;top:0;width:1280px;height:720px}
+
+/* ট্যাবলেট */
+@media(min-width:700px){
+ .top{padding:10px 20px}
+ #thumbs{padding:14px 20px}
+ .adds{padding:12px 20px}
+ #panel-body{padding:20px 20px 80px}
+ .themes{grid-template-columns:repeat(3,1fr)}
+}
+/* কম্পিউটার — পুরো পর্দা জুড়ে অ্যাপের মতো, দুই পাশের প্যানেল আলাদা স্ক্রল */
+@media(min-width:1180px){
+ body{height:100vh;overflow:hidden;display:flex;flex-direction:column}
+ .top{padding:9px 18px}
+ .app{flex:1;min-height:0;grid-template-columns:236px minmax(0,1fr) 390px;grid-template-areas:"left center right"}
+ .center{position:static;display:flex;flex-direction:column;min-height:0;border:0;box-shadow:none;background:transparent}
+ #stage{flex:1;min-height:0;padding:16px}
+ .left,.right{min-height:0;display:flex;flex-direction:column;border-bottom:0}
+ .left{border-right:1px solid var(--line)}
+ .right{border-left:1px solid var(--line)}
+ #thumbs{display:block;flex:1;overflow-y:auto;overflow-x:hidden;padding:12px}
+ .th-item{margin-bottom:14px}
+ #panel-body{flex:1;overflow-y:auto;padding:16px 16px 40px;max-width:none}
+ .themes{grid-template-columns:1fr 1fr}
+ .f input[type=text],.f textarea,.f select{font-size:15px}
+}
+@media(max-width:520px){
+ .brand h1{font-size:16px}
+ .top .btn{padding:6px 9px;font-size:13px}
+ .hide-s{display:none}
+ .themes{grid-template-columns:1fr 1fr}
+}
+
+/* =====================================================
+   স্লাইডের ডিজাইন (১২৮০×৭২০)
+   ===================================================== */
+.slide{position:relative;width:1280px;height:720px;overflow:hidden;color:var(--text);background:var(--bg1);font-family:var(--fb);line-height:1.25;text-align:left}
+.slide *{box-sizing:border-box}
+.slide .abs{position:absolute;left:0;top:0;right:0;bottom:0}
+.slide .sl-bg{background:radial-gradient(900px 560px at 72% 38%,var(--bg2),var(--bg1) 78%)}
+.slide .sl-glow{background:radial-gradient(560px 320px at 88% 4%,var(--glow),transparent 70%)}
+.slide .sl-grid{background-image:linear-gradient(var(--gl) 1px,transparent 1px),linear-gradient(90deg,var(--gl) 1px,transparent 1px);background-size:44px 44px}
+.slide .sl-img{width:100%;height:100%;object-fit:cover}
+.slide .sl-dim{background:var(--dim)}
+.slide .chip{position:absolute;left:0;top:22px;width:346px;height:104px}
+.slide .chip svg{position:absolute;left:0;top:0}
+.slide .chip span{position:absolute;left:0;top:0;width:262px;height:104px;display:flex;align-items:center;justify-content:center;font-family:var(--ft);font-weight:800;color:var(--chipText);text-align:center;padding:0 10px}
+.slide .stitle{position:absolute;top:22px;height:104px;display:flex;align-items:center;font-family:var(--ft);font-weight:800;color:var(--tcol);text-shadow:0 3px 10px rgba(0,0,0,.35);right:230px}
+.slide .since{position:absolute;right:46px;top:30px;text-align:center;line-height:1}
+.slide .since i{display:block;font-size:22px;opacity:.85;margin-bottom:2px}
+.slide .since b{font-size:58px;font-weight:800;color:var(--accent);font-family:var(--ft)}
+/* নিচের অংশ: বামে লোগো + নাম + ঠিকানা, ডানে যোগাযোগ + নম্বর */
+.slide .fl{position:absolute;left:36px;bottom:12px;display:flex;align-items:center;gap:12px;max-width:720px}
+.slide .flogo{height:var(--lh);width:auto;max-width:190px;object-fit:contain;flex:none}
+.slide svg.flogo{width:var(--lh)}
+.slide .ftx{min-width:0}
+.slide .fname b{display:block;font-size:28px;font-weight:800;letter-spacing:.5px;line-height:1.1}
+.slide .fname small{display:block;font-size:13px;opacity:.85;line-height:1.3;margin-top:1px}
+.slide .fad{font-size:14px;font-weight:500;opacity:.95;line-height:1.3;margin-top:3px;max-width:520px}
+.slide .fr{position:absolute;right:36px;bottom:12px;text-align:right;font-size:19px;font-weight:600;line-height:1.4}
+.slide .fr div{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.slide .fr .pg{font-size:26px;opacity:.65;font-weight:500;line-height:1.15;margin-top:2px}
+/* টেবিল */
+.slide .tb{position:absolute;left:64px;right:64px;top:132px;height:476px;display:flex;flex-direction:column;gap:12px}
+.slide .th{display:grid;gap:6px;height:56px;flex:none}
+.slide .th div{display:flex;align-items:center;justify-content:center;font-family:var(--ft);font-weight:700;font-size:calc(30px * var(--sc));color:var(--onacc);background:linear-gradient(180deg,var(--accent),var(--accent2));border-radius:10px;text-align:center;padding:0 10px;line-height:1.1}
+.slide .tr{flex:1;min-height:0;display:grid;border:2px solid;border-radius:14px;overflow:hidden}
+.slide .rc{display:flex;align-items:center;justify-content:center;text-align:center;padding:4px 12px;font-size:calc(30px * var(--sc));font-weight:600;line-height:1.2;border-left:1px solid var(--rl);min-width:0}
+.slide .rc:first-child{border-left:0}
+.slide .rc0{position:relative;justify-content:flex-start;text-align:left}
+.slide .rc0 img{position:absolute;left:0;top:0;height:100%;width:40%;object-fit:cover}
+.slide .rc0 .fade{position:absolute;left:0;top:0;height:100%;width:40%}
+.slide .rc0 .rt{position:relative;padding-left:16px}
+.slide .rc0.has .rt{margin-left:38%}
+.slide .rc0 .rt b{display:block;font-size:calc(32px * var(--sc));font-weight:700}
+.slide .rc0 .rt small{display:block;font-size:calc(21px * var(--sc));font-weight:500;opacity:.9;margin-top:2px}
+/* এমসিকিউ */
+.slide .mq{position:absolute;left:64px;right:64px;top:132px;height:476px;display:flex;flex-direction:column;gap:20px}
+.slide .mq-q{flex:none;border:2px solid var(--accent);border-radius:16px;padding:14px 26px;background:var(--card);font-weight:700;display:flex;align-items:center;min-height:96px;max-height:170px;overflow:hidden}
+.slide .mq-m{flex:1;min-height:0;display:flex;gap:24px}
+.slide .sol{position:relative;border:2px dashed var(--line2);border-radius:16px;padding:26px 20px 14px;background:var(--card);display:flex;flex-direction:column;gap:8px;min-width:0}
+.slide .soltag{position:absolute;top:-17px;left:18px;background:var(--accent);color:var(--onacc);font-weight:700;padding:3px 18px;border-radius:999px;font-size:22px}
+.slide .sol-i{position:relative;flex:1;min-height:0}
+.slide .sol-i img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain}
+.slide .sol-t{font-size:calc(28px * var(--sc));font-weight:600;line-height:1.4}
+.slide .opts{display:flex;flex-direction:column;gap:10px;min-width:0}
+.slide .opt{flex:1;min-height:0;display:flex;align-items:center;gap:14px;padding:0 18px;border:2px solid var(--line2);border-radius:14px;background:var(--card);font-size:calc(30px * var(--sc));font-weight:600;line-height:1.15}
+.slide .opt i{flex:none;width:46px;height:46px;border-radius:50%;background:var(--accent);color:var(--onacc);display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:800;font-size:25px}
+.slide .opt .ot{flex:1;min-width:0}
+.slide .opt.ok{border-color:#2ecc71;background:rgba(46,204,113,.25)}
+.slide .opt.ok i{background:#2ecc71;color:#fff}
+.slide .opt em{font-style:normal;color:#2ecc71;font-weight:800;font-size:34px}
+.slide .opts.two{flex-direction:row;flex-wrap:wrap;align-content:stretch}
+.slide .opts.two .opt{flex:0 0 calc(50% - 5px);height:calc(50% - 5px);padding:0 12px;gap:10px}
+/* পয়েন্ট */
+.slide .pt{position:absolute;left:64px;right:64px;top:132px;height:476px;display:flex;gap:30px;align-items:center}
+.slide .pt-l{flex:1;display:flex;flex-direction:column;gap:14px;justify-content:center;min-width:0}
+.slide .pt-l div{position:relative;padding-left:36px;font-size:calc(34px * var(--sc));font-weight:600;line-height:1.35}
+.slide .pt-l div u{position:absolute;left:0;top:.5em;width:15px;height:15px;border-radius:4px;background:var(--accent)}
+.slide .pt-l div.h{padding-left:0;color:var(--accent);font-weight:800;font-size:calc(40px * var(--sc));font-family:var(--ft)}
+.slide .pt-i{flex:0 0 42%;height:100%;position:relative}
+.slide .pt-i img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain}
+/* তুলনা */
+.slide .cm{position:absolute;left:64px;right:64px;top:132px;height:476px;display:flex;gap:26px}
+.slide .cm-c{flex:1;border:2px solid;border-radius:16px;background:var(--card);display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.slide .cm-h{flex:none;height:64px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:calc(34px * var(--sc));font-family:var(--ft);text-align:center;padding:0 12px}
+.slide .cm-b{flex:1;padding:16px 22px;display:flex;flex-direction:column;justify-content:center;gap:10px}
+.slide .cm-b div{position:relative;padding-left:30px;font-size:calc(28px * var(--sc));font-weight:600;line-height:1.35}
+.slide .cm-b u{position:absolute;left:0;top:.52em;width:13px;height:13px;border-radius:4px}
+/* ফোকাস (সংজ্ঞা / গুরুত্বপূর্ণ কথা) */
+.slide .fc{position:absolute;left:90px;right:90px;top:140px;height:456px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center;border:3px solid var(--accent);border-radius:24px;background:var(--card);padding:26px 50px}
+.slide .fc-l{background:var(--accent);color:var(--onacc);font-weight:800;padding:4px 28px;border-radius:999px;font-size:calc(28px * var(--sc))}
+.slide .fc-t{font-weight:700;line-height:1.35}
+.slide .fc-n{font-size:calc(26px * var(--sc));opacity:.85;font-weight:500}
+/* ছবি */
+.slide .im{position:absolute;left:64px;right:64px;top:132px;height:476px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.slide .im-i{flex:1;width:100%;min-height:0;position:relative}
+.slide .im-i img{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:contain}
+.slide .im-c{font-size:calc(28px * var(--sc));font-weight:600;text-align:center}
+/* কভার */
+.slide .cv{position:absolute;left:100px;right:100px;top:110px;height:490px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:20px}
+.slide .cv .c1{background:var(--accent);color:var(--onacc);font-weight:700;padding:6px 30px;border-radius:999px;font-size:calc(30px * var(--sc))}
+.slide .cv .c2{font-family:var(--ft);font-weight:800;font-size:calc(78px * var(--sc));line-height:1.15;color:var(--tcol);text-shadow:0 4px 14px rgba(0,0,0,.35)}
+.slide .cv .c3{font-size:calc(34px * var(--sc));font-weight:600;opacity:.92}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <svg width="28" height="28" viewBox="0 0 28 28"><rect width="28" height="28" rx="7" fill="#ffb703"/><rect x="5" y="7" width="18" height="12" rx="2" fill="#14213d"/><rect x="8" y="21" width="12" height="2" rx="1" fill="#14213d"/></svg>
+    <h1>স্লাইড স্টুডিও</h1>
+  </div>
+  <input id="deckName" type="text" value="আমার-স্লাইড" title="ফাইলের নাম">
+  <span class="sp"></span>
+  <button class="btn" id="btnPresent">▶ <span class="hide-s">স্লাইড </span>শো</button>
+  <button class="btn gold" id="btnExport" data-menu="exportMenu">⬇ ডাউনলোড</button>
+  <button class="btn" id="btnMore" data-menu="moreMenu">⋯</button>
+</header>
+
+<div class="menu" id="exportMenu">
+  <label class="l" for="qual">ছবির মান</label>
+  <select id="qual">
+    <option value="1">HD — ১২৮০×৭২০ (ছোট ফাইল)</option>
+    <option value="1.5" selected>Full HD — ১৯২০×১০৮০</option>
+    <option value="2">2K — ২৫৬০×১৪৪০ (বড় ফাইল)</option>
+  </select>
+  <button class="btn" data-exp="pdf">PDF — সব স্লাইড</button>
+  <button class="btn" data-exp="pptx">PPTX (পাওয়ারপয়েন্ট) — সব স্লাইড</button>
+  <button class="btn" data-exp="png1">PNG ছবি — এই স্লাইড</button>
+  <button class="btn" data-exp="jpg1">JPG ছবি — এই স্লাইড</button>
+  <button class="btn" data-exp="zip">PNG ছবি — সব স্লাইড (ZIP)</button>
+  <small>PPTX-এর প্রতিটি পাতা ছবি আকারে যায়, তাই পাওয়ারপয়েন্টে লেখা বদলানো যাবে না। বদলাতে চাইলে এখানে এডিট করে আবার ডাউনলোড করুন।</small>
+</div>
+<div class="menu" id="moreMenu">
+  <button class="btn" id="btnSave">প্রজেক্ট সেভ (ফাইল)</button>
+  <label class="btn" style="margin-top:6px">প্রজেক্ট খুলুন<input id="loadFile" type="file" accept=".json" hidden></label>
+  <button class="btn danger" id="btnNew">নতুন খালি প্রজেক্ট</button>
+  <hr>
+  <small>কম্পিউটারে: ← → তীর চিহ্নে স্লাইড বদলায়, Ctrl+S প্রজেক্ট সেভ। যেকোনো ছবি কপি করে Ctrl+V দিলে সেটা সরাসরি বর্তমান স্লাইডের ছবির জায়গায় বসে যায়।</small>
+</div>
+
+<div class="app">
+  <aside class="left">
+    <div class="adds">
+      <b>নতুন স্লাইড যোগ করুন</b>
+      <div class="chips">
+        <button class="btn sm" data-add="mcq">+ MCQ</button>
+        <button class="btn sm" data-add="table">+ টেবিল</button>
+        <button class="btn sm" data-add="points">+ পয়েন্ট</button>
+        <button class="btn sm" data-add="compare">+ তুলনা</button>
+        <button class="btn sm" data-add="focus">+ ফোকাস</button>
+        <button class="btn sm" data-add="image">+ ছবি</button>
+        <button class="btn sm" data-add="cover">+ কভার</button>
+      </div>
+      <button class="btn sm wide" id="btnBulk">📋 একসাথে অনেক MCQ বানান (পেস্ট করে)</button>
+    </div>
+    <div id="thumbs"></div>
+  </aside>
+
+  <main class="center">
+    <div id="stage"><div id="holder"><div id="stage-inner"></div></div></div>
+    <div class="navrow"><button class="btn sm" id="prev">← আগের</button><span id="pos"></span><button class="btn sm" id="next">পরের →</button></div>
+  </main>
+
+  <aside class="right">
+    <div class="tabs">
+      <button data-tab="content" class="on">লেখা</button>
+      <button data-tab="design">ডিজাইন</button>
+      <button data-tab="info">কোচিং তথ্য</button>
+    </div>
+    <div id="panel-body"></div>
+  </aside>
+</div>
+
+<div class="modal" id="bulkModal"><div class="box">
+  <h3>একসাথে অনেক MCQ বানান</h3>
+  <div class="hint">প্রশ্নব্যাংক বা ডক থেকে কপি করে নিচে পেস্ট করুন। প্রতিটি প্রশ্নের মাঝে একটা ফাঁকা লাইন রাখুন। প্রতিটি প্রশ্ন থেকে একটা করে MCQ স্লাইড হবে।</div>
+<pre>হাইড্রার কোন প্রজাতি সবুজ বর্ণের?
+ক) Hydra fusca
+খ) Hydra viridissima
+গ) Hydra vulgaris
+ঘ) Hydra gangetica
+উত্তর: খ</pre>
+  <textarea id="bulkText" rows="10" placeholder="এখানে পেস্ট করুন…"></textarea>
+  <label class="f chk"><input type="checkbox" id="bulkShow"><span>স্লাইডে সঠিক উত্তর আগে থেকেই চিহ্নিত দেখাও (না চাইলে স্লাইড শোতে R চেপে দেখানো যাবে)</span></label>
+  <div id="bulkInfo" class="hint">এখনো কিছু পেস্ট করা হয়নি।</div>
+  <div class="row"><button class="btn gold" id="bulkGo">স্লাইড বানান</button><button class="btn" id="bulkX">বাতিল</button></div>
+</div></div>
+
+<div id="busy"><div id="busyTxt">অপেক্ষা করুন…</div></div>
+<div id="toast"></div>
+<div id="pres"><div id="pres-in"></div><div class="pres-hint">← → দিয়ে স্লাইড বদলান · R চাপলে MCQ-এর উত্তর দেখা/লুকানো · Esc বন্ধ</div></div>
+<div id="exportStage"></div>
+
+<script>
+/* ============ সাধারণ সহায়ক ============ */
+const $=(s,r=document)=>r.querySelector(s);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=t=>esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\^\{(.+?)\}/g,'<sup>$1</sup>').replace(/_\{(.+?)\}/g,'<sub>$1</sub>').replace(/\n/g,'<br>');
+const toBn=n=>String(n).replace(/\d/g,d=>'০১২৩৪৫৬৭৮৯'[d]);
+const hex2rgb=h=>{h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');const n=parseInt(h,16);return[n>>16&255,n>>8&255,n&255]};
+const rgba=(h,a)=>{const[r,g,b]=hex2rgb(h);return`rgba(${r},${g},${b},${a})`};
+const mix=(a,b,t)=>{const A=hex2rgb(a),B=hex2rgb(b);return'#'+A.map((v,i)=>Math.round(v*t+B[i]*(1-t)).toString(16).padStart(2,'0')).join('')};
+const lum=h=>{const[r,g,b]=hex2rgb(h).map(v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)});return .2126*r+.7152*g+.0722*b};
+const onColor=h=>lum(h)>0.42?'#1a1200':'#ffffff';
+
+const ROWC=[['সোনালি','#f5b21a'],['সবুজ','#5fd12f'],['নীল','#4aa3ff'],['কমলা','#ff7a1a'],['লাল','#ff4d5e'],['বেগুনি','#a66bff'],['টিল','#19c6b7'],['গোলাপি','#ff5fa8']];
+const BN_OPT=['ক','খ','গ','ঘ'],EN_OPT=['A','B','C','D'],NUM_OPT=['১','২','৩','৪'];
+const BASE_FONTS=['Hind Siliguri','Noto Sans Bengali','Noto Serif Bengali','Anek Bangla','Baloo Da 2','Tiro Bangla','Mina','Atma','Galada'];
+let customFonts=[];
+
+const THEMES={
+ lab:{n:'ল্যাব ডার্ক',v:{bg1:'#080d12',bg2:'#1a2a36',accent:'#ffc21a',tcol:'#ffd21f',text:'#ffffff',chipBg:'#ffffff',chipText:'#b3141d'}},
+ maroon:{n:'মেরুন',v:{bg1:'#260409',bg2:'#66101c',accent:'#ffd24a',tcol:'#ffe08a',text:'#ffffff',chipBg:'#ffffff',chipText:'#8f0f1d'}},
+ forest:{n:'সবুজ বন',v:{bg1:'#04140d',bg2:'#125236',accent:'#a6f04a',tcol:'#c8ff7a',text:'#ffffff',chipBg:'#ffffff',chipText:'#0b5a34'}},
+ royal:{n:'রয়্যাল নীল',v:{bg1:'#050a22',bg2:'#173a8c',accent:'#ffd166',tcol:'#ffe29a',text:'#ffffff',chipBg:'#ffffff',chipText:'#123a9c'}},
+ sunset:{n:'সানসেট',v:{bg1:'#180a2b',bg2:'#8a2350',accent:'#ffb347',tcol:'#ffd08a',text:'#ffffff',chipBg:'#ffffff',chipText:'#8a2350'}},
+ clean:{n:'সাদা ক্লিন',v:{bg1:'#f3f6fb',bg2:'#dbe6f6',accent:'#1f4fd8',tcol:'#c8102e',text:'#14213d',chipBg:'#14213d',chipText:'#ffffff'}}
+};
+const themeSwatch=k=>`linear-gradient(90deg,${THEMES[k].v.bg1},${THEMES[k].v.bg2} 60%,${THEMES[k].v.accent})`;
+
+const state={cur:0,g:{
+ theme:'lab',...THEMES.lab.v,
+ name:'আপনার কোচিং',tagline:'medical & dental admission coaching',address:'আপনার কোচিংয়ের ঠিকানা, শহর',logo:null,logoH:64,showName:true,
+ phone:'০১৭০০-০০০০০০',fb:'fb.com/yourpage',
+ sinceOn:true,sinceLabel:'Since',sinceYear:'2010',
+ fontBody:'Hind Siliguri',fontTitle:'Hind Siliguri',
+ bgImg:null,dim:0.55,grid:true,showFooter:true,showNumber:true,numFmt:'en',optStyle:'bn'
+},slides:[]};
+const DEFAULT_G=JSON.parse(JSON.stringify(state.g));
+const cur=()=>state.slides[state.cur];
+const cc=()=>{const s=state.slides[state.cur];return s?(s.chapter||s.pre||'২য় অধ্যায়'):'২য় অধ্যায়'};
+const ct=()=>{const s=state.slides[state.cur];return s&&s.type!=='cover'?(s.title||''):''};
+
+const mk={
+ mcq:()=>({type:'mcq',chapter:cc(),title:ct()||'অধ্যায়ের নাম',q:'নিচের কোনটি সঠিক?',options:['প্রথম অপশন','দ্বিতীয় অপশন','তৃতীয় অপশন','চতুর্থ অপশন'],correct:0,showAnswer:false,optCols:1,solTitle:'সমাধান',sol:'',img:null,split:48,scale:1}),
+ table:()=>({type:'table',chapter:cc(),title:'টেবিলের শিরোনাম',headers:['বিষয়','বিবরণ','মন্তব্য'],rows:[0,1,2,3].map(i=>({name:'',sub:'',cells:['',''],img:null,color:i})),firstW:1.5,scale:1}),
+ points:()=>({type:'points',chapter:cc(),title:'শিরোনাম',text:'# উপশিরোনাম\nপ্রথম পয়েন্ট\nদ্বিতীয় পয়েন্ট\nতৃতীয় পয়েন্ট',img:null,scale:1}),
+ compare:()=>({type:'compare',chapter:cc(),title:'তুলনা',lt:'প্রথম বিষয়',ltext:'পয়েন্ট ১\nপয়েন্ট ২\nপয়েন্ট ৩',rt:'দ্বিতীয় বিষয়',rtext:'পয়েন্ট ১\nপয়েন্ট ২\nপয়েন্ট ৩',cl:0,cr:2,scale:1}),
+ focus:()=>({type:'focus',chapter:cc(),title:'গুরুত্বপূর্ণ',label:'সংজ্ঞা',text:'এখানে মূল কথাটি বড় করে লিখুন',note:'',scale:1}),
+ image:()=>({type:'image',chapter:cc(),title:'শিরোনাম',img:null,caption:'',scale:1}),
+ cover:()=>({type:'cover',pre:cc(),title:'অধ্যায়ের নাম',sub:'শিক্ষকের নাম · ব্যাচ',scale:1})
+};
+const TYPE_NAME={mcq:'MCQ স্লাইড',table:'টেবিল স্লাইড',points:'পয়েন্ট স্লাইড',compare:'তুলনার স্লাইড',focus:'ফোকাস স্লাইড',image:'ছবির স্লাইড',cover:'কভার স্লাইড'};
+
+state.slides=[
+ {type:'table',chapter:'২য় অধ্যায়',title:'হাইড্রার প্রজাতি',headers:['হাইড্রার প্রজাতি','কর্ষিকার সংখ্যা','বর্ণ'],firstW:1.5,scale:1,rows:[
+  {name:'Hydra fusca',sub:'',cells:['৪-৮ টি','বাদামী বর্ণের'],img:null,color:0},
+  {name:'Hydra viridissima',sub:'(H. viridis, Chlorohydra viridissima)',cells:['৬ টি','সবুজ বর্ণের'],img:null,color:1},
+  {name:'Hydra vulgaris',sub:'',cells:['৬-১০ টি','বর্ণহীন বা হলুদ বাদামী'],img:null,color:2},
+  {name:'Hydra gangetica',sub:'',cells:['৬-১০ টি','গোলাপি বর্ণের'],img:null,color:3}]},
+ {type:'mcq',chapter:'২য় অধ্যায়',title:'প্রাণীর বৈচিত্র্য ও শ্রেণিবিন্যাস',q:'হাইড্রার কোন প্রজাতিটি সবুজ বর্ণের?',options:['Hydra fusca','Hydra viridissima','Hydra vulgaris','Hydra gangetica'],correct:1,showAnswer:true,optCols:1,solTitle:'সমাধান',sol:'সবুজ বর্ণের কারণ: দেহে **Chlorella** শৈবাল সহাবস্থান করে।\nকর্ষিকার সংখ্যা = ৬ টি',img:null,split:48,scale:1},
+ {type:'points',chapter:'২য় অধ্যায়',title:'হাইড্রার বৈশিষ্ট্য',text:'# মূল বৈশিষ্ট্য\nমিঠা পানিতে বাস করে\nদেহ দ্বিস্তরী ও রেডিয়াল প্রতিসম\nকর্ষিকা দিয়ে শিকার ধরে\nমুকুলোদগমের মাধ্যমে অযৌন জনন',img:null,scale:1}
+];
+
+const gl=(g=state.g)=>{const dark=lum(g.bg1)<0.35;return{dark,card:dark?'rgba(255,255,255,.07)':'rgba(255,255,255,.8)',line:dark?'rgba(255,255,255,.3)':'rgba(20,33,61,.32)',gl:dark?'rgba(255,255,255,.045)':'rgba(20,33,61,.06)',rowBase:dark?mix(g.bg1,'#000000',.55):'#ffffff',rl:dark?'rgba(255,255,255,.28)':'rgba(20,33,61,.25)'}};
+
+/* ============ স্লাইড তৈরি ============ */
+const ICON_PHONE=c=>`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>`;
+const ICON_FB=c=>`<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M14.5 8H13a1.5 1.5 0 0 0-1.5 1.5V21M9 13h5.5"/></svg>`;
+const LOGO_SVG=`<svg class="flogo" viewBox="0 0 64 64"><circle cx="32" cy="32" r="28" fill="none" stroke="#dddddd" stroke-width="4"/><circle cx="32" cy="32" r="16" fill="#e3342f"/><circle cx="32" cy="32" r="7" fill="#ffc21a"/></svg>`;
+
+function styleVars(sc){
+ const g=state.g,d=gl(g);
+ return `--bg1:${g.bg1};--bg2:${g.bg2};--accent:${g.accent};--accent2:${mix(g.accent,'#ff8a00',.62)};--onacc:${onColor(g.accent)};--tcol:${g.tcol};--text:${g.text};--chipText:${g.chipText};--card:${d.card};--line2:${d.line};--gl:${d.gl};--rl:${d.rl};--glow:${rgba(g.accent,.15)};--dim:${rgba(g.bg1,g.dim)};--sc:${sc};--lh:${g.logoH||64}px;--fb:'${g.fontBody}','Noto Sans Bengali','Hind Siliguri',sans-serif;--ft:'${g.fontTitle}','Noto Sans Bengali','Hind Siliguri',sans-serif;`;
+}
+function headerHTML(s){
+ const g=state.g;let h='';
+ const hasChip=!!s.chapter;
+ if(hasChip){
+  const fs=s.chapter.length>9?34:44;
+  h+=`<div class="chip"><svg width="346" height="104" viewBox="0 0 346 104"><polygon points="0,0 272,0 322,104 0,104" fill="${g.chipBg}"/><polygon points="272,0 296,0 346,104 322,104" fill="${g.chipText}"/></svg><span style="font-size:${fs}px">${fmt(s.chapter)}</span></div>`;
+ }
+ if(s.title){
+  const n=s.title.length;const fs=n>38?38:n>28?46:n>20?54:60;
+  h+=`<div class="stitle" style="left:${hasChip?388:64}px;font-size:${fs}px">${fmt(s.title)}</div>`;
+ }
+ return h;
+}
+function sinceHTML(){const g=state.g;return g.sinceOn?`<div class="since"><i>${esc(g.sinceLabel)}</i><b>${esc(g.sinceYear)}</b></div>`:''}
+function footerHTML(i,total){
+ const g=state.g;if(!g.showFooter)return '';
+ const logo=g.logo?`<img class="flogo" src="${g.logo}">`:LOGO_SVG;
+ const txt=(g.showName||g.address)?`<div class="ftx">${g.showName?`<div class="fname"><b>${esc(g.name)}</b>${g.tagline?`<small>${esc(g.tagline)}</small>`:''}</div>`:''}${g.address?`<div class="fad">${fmt(g.address)}</div>`:''}</div>`:'';
+ const n=g.numFmt==='bn'?`${toBn(i+1)}/${toBn(total)}`:`${i+1}/${total}`;
+ return `<div class="fl">${logo}${txt}</div><div class="fr">${g.phone?`<div>${ICON_PHONE(g.text)}<span>${esc(g.phone)}</span></div>`:''}${g.fb?`<div>${ICON_FB(g.text)}<span>${esc(g.fb)}</span></div>`:''}${g.showNumber?`<div class="pg">${n}</div>`:''}</div>`;
+}
+function tableBody(s){
+ const d=gl(),cols=s.headers.length;
+ const tpl=`grid-template-columns:${s.firstW||1.5}fr ${Array(cols-1).fill('1fr').join(' ')}`;
+ const head=`<div class="th" style="${tpl}">${s.headers.map(h=>`<div>${fmt(h)}</div>`).join('')}</div>`;
+ const rows=s.rows.map(r=>{
+  const c=ROWC[(r.color||0)%ROWC.length][1];
+  const base=mix(c,d.rowBase,d.dark?.14:.12);
+  const img=r.img?`<img src="${r.img}"><div class="fade" style="background:linear-gradient(90deg,rgba(0,0,0,0) 40%,${base} 100%)"></div>`:'';
+  let cells=`<div class="rc rc0 ${r.img?'has':''}">${img}<div class="rt"><b>${fmt(r.name)}</b>${r.sub?`<small>${fmt(r.sub)}</small>`:''}</div></div>`;
+  for(let k=0;k<cols-1;k++)cells+=`<div class="rc">${fmt((r.cells&&r.cells[k])||'')}</div>`;
+  return `<div class="tr" style="${tpl};border-color:${c};background:${base}">${cells}</div>`;
+ }).join('');
+ return `<div class="tb">${head}${rows}</div>`;
+}
+function mcqBody(s,i,opt){
+ const g=state.g;
+ const labels=g.optStyle==='en'?EN_OPT:g.optStyle==='num'?NUM_OPT:BN_OPT;
+ const show=opt.reveal!==undefined?opt.reveal:s.showAnswer;
+ const n=s.q.length;const qfs=(n>110?28:n>70?33:n>40?38:44)*(s.scale||1);
+ const split=s.split||48;
+ const sol=`<div class="sol" style="flex:${split}"><div class="soltag">${fmt(s.solTitle||'সমাধান')}</div>${s.img?`<div class="sol-i"><img src="${s.img}"></div>`:''}${s.sol?`<div class="sol-t">${fmt(s.sol)}</div>`:''}${(!s.img&&!s.sol)?'<div class="sol-i"></div>':''}</div>`;
+ const opts=`<div class="opts ${s.optCols===2?'two':''}" style="flex:${100-split}">${s.options.map((o,k)=>`<div class="opt ${show&&s.correct===k?'ok':''}"><i>${labels[k]}</i><span class="ot">${fmt(o)}</span>${show&&s.correct===k?'<em>✓</em>':''}</div>`).join('')}</div>`;
+ return `<div class="mq"><div class="mq-q" style="font-size:${qfs}px">${fmt(s.q)}</div><div class="mq-m">${sol}${opts}</div></div>`;
+}
+function pointsBody(s){
+ const lines=(s.text||'').split('\n').filter(l=>l.trim()!=='');
+ const items=lines.map(l=>l.startsWith('# ')?`<div class="h">${fmt(l.slice(2))}</div>`:`<div><u></u>${fmt(l)}</div>`).join('');
+ return `<div class="pt"><div class="pt-l">${items}</div>${s.img?`<div class="pt-i"><img src="${s.img}"></div>`:''}</div>`;
+}
+function compareBody(s){
+ const cols=[[s.lt,s.ltext,s.cl],[s.rt,s.rtext,s.cr]].map(([t,tx,ci])=>{
+  const c=ROWC[(ci||0)%ROWC.length][1];
+  const items=(tx||'').split('\n').filter(x=>x.trim()).map(l=>`<div><u style="background:${c}"></u>${fmt(l)}</div>`).join('');
+  return `<div class="cm-c" style="border-color:${c}"><div class="cm-h" style="background:${c};color:${onColor(c)}">${fmt(t)}</div><div class="cm-b">${items}</div></div>`;
+ }).join('');
+ return `<div class="cm">${cols}</div>`;
+}
+function focusBody(s){
+ const n=(s.text||'').length;const fs=(n>160?32:n>100?38:n>50?44:54)*(s.scale||1);
+ return `<div class="fc">${s.label?`<div class="fc-l">${fmt(s.label)}</div>`:''}<div class="fc-t" style="font-size:${fs}px">${fmt(s.text)}</div>${s.note?`<div class="fc-n">${fmt(s.note)}</div>`:''}</div>`;
+}
+function imageBody(s){
+ return `<div class="im"><div class="im-i">${s.img?`<img src="${s.img}">`:''}</div>${s.caption?`<div class="im-c">${fmt(s.caption)}</div>`:''}</div>`;
+}
+function coverBody(s){
+ return `<div class="cv">${s.pre?`<div class="c1">${fmt(s.pre)}</div>`:''}<div class="c2">${fmt(s.title)}</div>${s.sub?`<div class="c3">${fmt(s.sub)}</div>`:''}</div>`;
+}
+function slideHTML(s,i,total,opt={}){
+ const g=state.g;
+ const body=({table:tableBody,mcq:mcqBody,points:pointsBody,compare:compareBody,focus:focusBody,image:imageBody,cover:coverBody}[s.type]||coverBody)(s,i,opt);
+ const head=s.type==='cover'?'':headerHTML(s);
+ return `<div class="slide" style="${styleVars(s.scale||1)}"><div class="abs sl-bg"></div>${g.bgImg?`<img class="abs sl-img" src="${g.bgImg}"><div class="abs sl-dim"></div>`:''}<div class="abs sl-glow"></div>${g.grid?'<div class="abs sl-grid"></div>':''}${head}${sinceHTML()}${body}${footerHTML(i,total)}</div>`;
+}
+
+/* ============ প্রিভিউ (মোবাইল/ট্যাব/কম্পিউটার — সব মাপে ফিট) ============ */
+let thumbTimer,saveTimer;
+const isDesk=()=>window.innerWidth>=1180;
+function fit(){
+ const box=$('#stage');let k;
+ if(isDesk()){
+  box.style.height='';
+  const w=box.clientWidth-32,h=box.clientHeight-32;
+  k=Math.max(.1,Math.min(w/1280,h/720));
+ }else{
+  const small=window.innerWidth<600,land=window.innerWidth>window.innerHeight;
+  const w=box.clientWidth-(small?16:24);
+  const maxH=window.innerHeight*(land?.62:small?.36:.46);
+  k=Math.max(.1,Math.min(w/1280,maxH/720));
+  box.style.height=(720*k+(small?12:20))+'px';
+ }
+ $('#stage-inner').style.transform=`scale(${k})`;
+ $('#holder').style.width=1280*k+'px';$('#holder').style.height=720*k+'px';
+}
+function renderMain(){
+ $('#stage-inner').innerHTML=slideHTML(cur(),state.cur,state.slides.length);
+ $('#pos').textContent=`স্লাইড ${toBn(state.cur+1)} / ${toBn(state.slides.length)}`;
+ fit();
+ clearTimeout(thumbTimer);thumbTimer=setTimeout(()=>renderThumbs(),220);
+ clearTimeout(saveTimer);saveTimer=setTimeout(autosave,900);
+}
+function renderThumbs(reveal){
+ const box=$('#thumbs');const sl=box.scrollLeft,st=box.scrollTop;const n=state.slides.length;
+ box.innerHTML=state.slides.map((s,i)=>`<div class="th-item ${i===state.cur?'on':''}" data-i="${i}" draggable="true"><div class="th-n">${i+1}</div><div class="th-box"><div class="th-sc">${slideHTML(s,i,n)}</div></div><div class="th-tools"><button data-t="up" title="আগে নিন">↑</button><button data-t="down" title="পরে নিন">↓</button><button data-t="dup" title="কপি">কপি</button><button data-t="del" title="মুছুন">✕</button></div></div>`).join('');
+ box.scrollLeft=sl;box.scrollTop=st;
+ if(reveal)revealActive();
+}
+function revealActive(){
+ const a=$('.th-item.on'),b=$('#thumbs');if(!a)return;
+ if(isDesk())b.scrollTop=a.offsetTop-(b.clientHeight-a.offsetHeight)/2;
+ else b.scrollLeft=a.offsetLeft-(b.clientWidth-a.offsetWidth)/2;
+}
+function autosave(){try{localStorage.setItem('slideStudioV2',JSON.stringify({g:state.g,slides:state.slides}))}catch(e){}}
+function toast(t){const el=$('#toast');el.textContent=t;el.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>el.style.display='none',2800)}
+
+/* ============ ডেটা পাথ ============ */
+function rt(p){return p.startsWith('s.')?[cur(),p.slice(2)]:[state.g,p.slice(2)]}
+function getP(p){const[o,path]=rt(p);return path.split('.').reduce((a,k)=>a==null?a:a[k],o)}
+function setP(p,v){const[o,path]=rt(p);const ks=path.split('.');const last=ks.pop();ks.reduce((a,k)=>a[k],o)[last]=v}
+
+/* ============ ফর্ম ফিল্ড ============ */
+const F={
+ text:(l,p,ph='')=>`<label class="f"><span>${l}</span><input type="text" data-p="${p}" placeholder="${ph}"></label>`,
+ area:(l,p,r=3)=>`<label class="f"><span>${l}</span><textarea rows="${r}" data-p="${p}"></textarea></label>`,
+ range:(l,p,min,max,step,suf='')=>`<label class="f"><span>${l}: <em data-out="${p}" data-suf="${suf}"></em></span><input type="range" min="${min}" max="${max}" step="${step}" data-p="${p}" data-num="1"></label>`,
+ color:(l,p)=>`<label class="f"><span>${l}</span><input type="color" data-p="${p}"></label>`,
+ check:(l,p)=>`<label class="f chk"><input type="checkbox" data-p="${p}"><span>${l}</span></label>`,
+ select:(l,p,opts,num)=>`<label class="f"><span>${l}</span><select data-p="${p}" ${num?'data-num="1"':''}>${opts.map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}</select></label>`,
+ img:(l,p,alpha)=>{const v=getP(p);return `<div class="f imgf"><span>${l}</span><div class="row"><input type="file" accept="image/*" data-file="${p}" ${alpha?'data-alpha="1"':''}>${v?`<img src="${v}"><button class="btn sm danger" data-clr="${p}">মুছুন</button>`:''}</div></div>`}
+};
+const SCALE=F.range('লেখার সাইজ','s.scale',.6,1.4,.05);
+const ROWSEL=ROWC.map((c,k)=>[k,c[0]]);
+
+function contentPanel(){
+ const s=cur();let h=`<div class="hint"><b>${TYPE_NAME[s.type]}</b> — লেখায় সাহায্য: <b>**গাঢ়**</b>, x^{2} (সুপারস্ক্রিপ্ট), H_{2}O (সাবস্ক্রিপ্ট)</div>`;
+ if(s.type==='cover')return h+F.text('উপরের ট্যাগ (যেমন অধ্যায়ের নাম)','s.pre')+F.text('বড় শিরোনাম','s.title')+F.area('নিচের লেখা','s.sub',2)+SCALE;
+ h+=F.text('অধ্যায়ের নাম (উপরের বাম বক্স)','s.chapter','যেমন: ২য় অধ্যায়')+F.text('শিরোনাম (উপরে বড় করে)','s.title')+`<button class="btn sm" data-act="sameChapter" style="margin-bottom:12px">এই অধ্যায়ের নাম সব স্লাইডে দিন</button>`;
+ if(s.type==='mcq'){
+  h+=F.area('প্রশ্ন','s.q',3);
+  s.options.forEach((o,k)=>{h+=F.text(`অপশন ${BN_OPT[k]}`,`s.options.${k}`)});
+  h+=`<div class="two">${F.select('সঠিক উত্তর','s.correct',[[0,'অপশন ক'],[1,'অপশন খ'],[2,'অপশন গ'],[3,'অপশন ঘ'],[-1,'কোনোটি নয়']],true)}${F.select('অপশন সাজানো','s.optCols',[[1,'উপর-নিচ'],[2,'২×২']],true)}</div>`+F.check('সঠিক উত্তর চিহ্নিত দেখাও','s.showAnswer');
+  h+=F.text('বাম অংশের শিরোনাম','s.solTitle')+F.area('সমাধান (বাম পাশে দেখাবে)','s.sol',5)+F.img('সমাধানের ছবি / চিত্র (কপি করে Ctrl+V-ও দিতে পারেন)','s.img')+F.range('বাম অংশের প্রস্থ','s.split',30,65,1,'%')+SCALE;
+ }
+ if(s.type==='table'){
+  h+=`<div class="h4 first">কলামের নাম</div>`+s.headers.map((x,k)=>F.text(`কলাম ${k+1}`,`s.headers.${k}`)).join('');
+  h+=`<div class="two" style="margin-bottom:6px"><button class="btn sm" data-act="addCol">+ কলাম</button><button class="btn sm" data-act="delCol">− শেষ কলাম</button></div><div class="h4">সারি</div>`;
+  s.rows.forEach((r,i)=>{
+   h+=`<div class="card"><div class="card-h">সারি ${i+1}<button class="btn sm danger" data-act="delRow" data-i="${i}">মুছুন</button></div>`+F.text('প্রথম কলাম (নাম)',`s.rows.${i}.name`)+F.text('ছোট লেখা (ঐচ্ছিক)',`s.rows.${i}.sub`);
+   for(let k=0;k<s.headers.length-1;k++)h+=F.text(esc(s.headers[k+1]||`কলাম ${k+2}`),`s.rows.${i}.cells.${k}`);
+   h+=F.img('সারির ছবি (ঐচ্ছিক)',`s.rows.${i}.img`)+F.select('সারির রং',`s.rows.${i}.color`,ROWSEL,true)+`</div>`;
+  });
+  h+=`<button class="btn sm" data-act="addRow" style="margin-bottom:12px">+ নতুন সারি</button>`+F.range('প্রথম কলামের প্রস্থ','s.firstW',1,3,.1)+SCALE;
+ }
+ if(s.type==='points')h+=F.area('পয়েন্টগুলো (প্রতি লাইনে একটি; # দিয়ে শুরু করলে উপশিরোনাম)','s.text',9)+F.img('ডান পাশের ছবি (ঐচ্ছিক)','s.img')+SCALE;
+ if(s.type==='compare')h+=`<div class="card"><div class="card-h">বাম বক্স</div>${F.text('শিরোনাম','s.lt')}${F.area('পয়েন্ট (প্রতি লাইনে একটি)','s.ltext',4)}${F.select('রং','s.cl',ROWSEL,true)}</div><div class="card"><div class="card-h">ডান বক্স</div>${F.text('শিরোনাম','s.rt')}${F.area('পয়েন্ট (প্রতি লাইনে একটি)','s.rtext',4)}${F.select('রং','s.cr',ROWSEL,true)}</div>`+SCALE;
+ if(s.type==='focus')h+=F.text('ট্যাগ (যেমন: সংজ্ঞা, সূত্র, মনে রাখুন)','s.label')+F.area('মূল কথা (বড় করে)','s.text',4)+F.text('নিচের ছোট লেখা (ঐচ্ছিক)','s.note')+SCALE;
+ if(s.type==='image')h+=F.img('ছবি (কপি করে Ctrl+V-ও দিতে পারেন)','s.img')+F.text('ছবির নিচের লেখা','s.caption')+SCALE;
+ return h;
+}
+function designPanel(){
+ const g=state.g;
+ let h=`<div class="h4 first">থিম</div><div class="themes">${Object.keys(THEMES).map(k=>`<button data-theme="${k}" class="${g.theme===k?'on':''}"><i style="background:${themeSwatch(k)}"></i><span>${THEMES[k].n}</span></button>`).join('')}</div>`;
+ h+=`<div class="h4">রং নিজের মতো বদলান</div><div class="two">${F.color('ব্যাকগ্রাউন্ড ১','g.bg1')}${F.color('ব্যাকগ্রাউন্ড ২','g.bg2')}${F.color('হাইলাইট রং','g.accent')}${F.color('শিরোনামের রং','g.tcol')}${F.color('লেখার রং','g.text')}${F.color('অধ্যায় বক্সের রং','g.chipBg')}</div>${F.color('অধ্যায় বক্সের লেখার রং','g.chipText')}`;
+ const fopts=[...BASE_FONTS,...customFonts].map(f=>[f,f]);
+ h+=`<div class="h4">ফন্ট</div>${F.select('মূল লেখার ফন্ট','g.fontBody',fopts)}${F.select('শিরোনামের ফন্ট','g.fontTitle',fopts)}<div class="f imgf"><span>নিজের ফন্ট যোগ করুন (.ttf / .otf / .woff)</span><div class="row"><input type="file" accept=".ttf,.otf,.woff,.woff2" id="fontUp"></div></div>`;
+ h+=`<div class="h4">ব্যাকগ্রাউন্ড ছবি</div>${F.img('নিজের ব্যাকগ্রাউন্ড (ঐচ্ছিক)','g.bgImg')}${g.bgImg?F.range('ছবির উপর অন্ধকার','g.dim',0,.95,.05):''}${F.check('হালকা গ্রিড প্যাটার্ন','g.grid')}`;
+ h+=`<div class="h4">অন্যান্য</div>${F.check('নিচের লোগো ও ঠিকানা দেখাও','g.showFooter')}${F.check('স্লাইড নম্বর দেখাও (৩/৩৩)','g.showNumber')}<div class="two">${F.select('নম্বরের ধরন','g.numFmt',[['en','1/10'],['bn','১/১০']])}${F.select('MCQ অপশন','g.optStyle',[['bn','ক খ গ ঘ'],['en','A B C D'],['num','১ ২ ৩ ৪']])}</div>`;
+ return h;
+}
+function infoPanel(){
+ return `<div class="hint">এখানে একবার দিলেই সব স্লাইডের নিচে লোগো, ঠিকানা ও যোগাযোগ বসে যাবে।</div>`
+ +`<div class="h4 first">নিচের বাম পাশ</div>`+F.img('লোগো (PNG হলে ভালো)','g.logo',true)+F.range('লোগোর সাইজ','g.logoH',36,100,2,'px')+F.check('লোগোর পাশে নাম দেখাও','g.showName')+F.text('কোচিং সেন্টারের নাম','g.name')+F.text('ট্যাগলাইন (নামের নিচে ছোট লেখা)','g.tagline')+F.area('ঠিকানা (নামের নিচে বসবে)','g.address',2)
+ +`<div class="h4">নিচের ডান পাশ</div>`+F.text('ফোন নম্বর','g.phone')+F.text('ফেসবুক / ওয়েবসাইট','g.fb')
+ +`<div class="h4">উপরের ডান কোণার ব্যাজ</div>`+F.check('“Since” ব্যাজ দেখাও','g.sinceOn')+`<div class="two">${F.text('লেখা','g.sinceLabel')}${F.text('সাল','g.sinceYear')}</div>`;
+}
+let tab='content';
+function renderPanel(){
+ const body=$('#panel-body');const top=body.scrollTop;const pageY=window.scrollY;
+ body.innerHTML=tab==='content'?contentPanel():tab==='design'?designPanel():infoPanel();
+ body.querySelectorAll('[data-p]').forEach(el=>{
+  const p=el.dataset.p;const v=getP(p);
+  if(el.type==='checkbox')el.checked=!!v;else el.value=v??'';
+  const out=body.querySelector(`[data-out="${CSS.escape(p)}"]`);
+  const upd=val=>{if(out)out.textContent=val+(out.dataset.suf||'')};
+  upd(v);
+  el.addEventListener('input',()=>{
+   const val=el.type==='checkbox'?el.checked:(el.dataset.num?parseFloat(el.value):el.value);
+   setP(p,val);if(el.type==='range')upd(val);
+   renderMain();
+  });
+ });
+ body.querySelectorAll('[data-file]').forEach(el=>el.addEventListener('change',async()=>{
+  const f=el.files[0];if(!f)return;
+  const p=el.dataset.file;
+  const url=await readImage(f,p==='g.bgImg'?1920:1400,!!el.dataset.alpha||/png|svg|webp/.test(f.type));
+  setP(p,url);renderPanel();renderMain();
+ }));
+ body.querySelectorAll('[data-clr]').forEach(b=>b.addEventListener('click',()=>{setP(b.dataset.clr,null);renderPanel();renderMain()}));
+ body.querySelectorAll('[data-theme]').forEach(b=>b.addEventListener('click',()=>{Object.assign(state.g,THEMES[b.dataset.theme].v,{theme:b.dataset.theme});renderPanel();renderMain()}));
+ const fu=$('#fontUp');if(fu)fu.addEventListener('change',()=>addFont(fu.files[0]));
+ body.scrollTop=top;
+ if(!isDesk())window.scrollTo(0,pageY);
+}
+function readImage(file,maxW,keepAlpha){
+ return new Promise(res=>{
+  const fr=new FileReader();
+  fr.onload=()=>{
+   if(file.type==='image/svg+xml'){res(fr.result);return}
+   const im=new Image();
+   im.onload=()=>{
+    const k=Math.min(1,maxW/im.width);const c=document.createElement('canvas');
+    c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
+    c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+    res(keepAlpha?c.toDataURL('image/png'):c.toDataURL('image/jpeg',.9));
+   };
+   im.src=fr.result;
+  };
+  fr.readAsDataURL(file);
+ });
+}
+function addFont(file){
+ if(!file)return;
+ const name=file.name.replace(/\.[^.]+$/,'').replace(/['"\\<>]/g,'');
+ const fr=new FileReader();
+ fr.onload=async()=>{
+  const st=document.createElement('style');
+  st.textContent=`@font-face{font-family:"${name}";src:url(${fr.result})}`;
+  document.head.appendChild(st);
+  try{await document.fonts.load(`700 24px "${name}"`,'অআকখ')}catch(e){}
+  if(!customFonts.includes(name))customFonts.push(name);
+  state.g.fontBody=name;state.g.fontTitle=name;
+  renderPanel();renderMain();toast(`ফন্ট যোগ হয়েছে: ${name}`);
+ };
+ fr.readAsDataURL(file);
+}
+
+/* ============ স্লাইড বাছাই, সাজানো ============ */
+function select(i){
+ state.cur=Math.max(0,Math.min(state.slides.length-1,i));
+ renderPanel();renderMain();
+ document.querySelectorAll('.th-item').forEach((el,k)=>el.classList.toggle('on',k===state.cur));
+ revealActive();
+}
+let dragI=null;
+$('#thumbs').addEventListener('click',e=>{
+ const it=e.target.closest('.th-item');if(!it)return;const i=+it.dataset.i;
+ const t=e.target.closest('[data-t]');
+ if(t){
+  const a=t.dataset.t,S=state.slides;
+  if(a==='up'&&i>0){[S[i-1],S[i]]=[S[i],S[i-1]];state.cur=i-1}
+  else if(a==='down'&&i<S.length-1){[S[i+1],S[i]]=[S[i],S[i+1]];state.cur=i+1}
+  else if(a==='dup'){S.splice(i+1,0,JSON.parse(JSON.stringify(S[i])));state.cur=i+1}
+  else if(a==='del'){if(S.length===1){toast('অন্তত একটি স্লাইড থাকতে হবে');return}S.splice(i,1);state.cur=Math.min(i,S.length-1)}
+  renderPanel();renderMain();renderThumbs(true);return;
+ }
+ select(i);
+});
+$('#thumbs').addEventListener('dragstart',e=>{const it=e.target.closest('.th-item');if(!it)return;dragI=+it.dataset.i;it.classList.add('drag');e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',String(dragI))}catch(x){}});
+$('#thumbs').addEventListener('dragover',e=>{if(dragI!==null)e.preventDefault()});
+$('#thumbs').addEventListener('drop',e=>{
+ e.preventDefault();const it=e.target.closest('.th-item');if(!it||dragI===null)return;
+ const to=+it.dataset.i;if(to!==dragI){const [m]=state.slides.splice(dragI,1);state.slides.splice(to,0,m);state.cur=to;renderPanel();renderMain();renderThumbs(true)}
+ dragI=null;
+});
+$('#thumbs').addEventListener('dragend',()=>{dragI=null;document.querySelectorAll('.th-item.drag').forEach(x=>x.classList.remove('drag'))});
+
+document.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',()=>{
+ const s=mk[b.dataset.add]();state.slides.splice(state.cur+1,0,s);state.cur++;renderPanel();renderMain();renderThumbs(true);
+ if(!isDesk())window.scrollTo({top:0,behavior:'smooth'});
+}));
+document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{
+ tab=b.dataset.tab;document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));renderPanel();
+}));
+$('#panel-body').addEventListener('click',e=>{
+ const b=e.target.closest('[data-act]');if(!b)return;const s=cur();const a=b.dataset.act;
+ if(a==='addRow')s.rows.push({name:'',sub:'',cells:Array(s.headers.length-1).fill(''),img:null,color:s.rows.length%8});
+ if(a==='delRow'){if(s.rows.length>1)s.rows.splice(+b.dataset.i,1)}
+ if(a==='addCol'){if(s.headers.length<5){s.headers.push('নতুন কলাম');s.rows.forEach(r=>r.cells.push(''))}else toast('সর্বোচ্চ ৫টি কলাম')}
+ if(a==='delCol'){if(s.headers.length>2){s.headers.pop();s.rows.forEach(r=>r.cells.pop())}}
+ if(a==='sameChapter'){state.slides.forEach(x=>{if(x.type==='cover')x.pre=s.chapter;else x.chapter=s.chapter});toast('সব স্লাইডে অধ্যায়ের নাম বসেছে')}
+ renderPanel();renderMain();renderThumbs();
+});
+$('#prev').onclick=()=>select(state.cur-1);
+$('#next').onclick=()=>select(state.cur+1);
+window.addEventListener('resize',()=>{fit();if($('#pres').classList.contains('on'))presFit()});
+window.addEventListener('orientationchange',()=>setTimeout(fit,250));
+
+/* ছবি কপি-পেস্ট (স্ক্রিনশট সরাসরি বসানো) */
+document.addEventListener('paste',async e=>{
+ const items=[...(e.clipboardData?.items||[])].filter(i=>i.type.startsWith('image/'));
+ if(!items.length)return;
+ const s=cur();
+ if(!['mcq','points','image'].includes(s.type)){toast('এই ধরনের স্লাইডে সরাসরি ছবি বসে না — সারির ছবি ঘর ব্যবহার করুন');return}
+ e.preventDefault();
+ s.img=await readImage(items[0].getAsFile(),1400,true);
+ renderPanel();renderMain();renderThumbs();toast('ছবি বসে গেছে');
+});
+/* কিবোর্ড শর্টকাট */
+document.addEventListener('keydown',e=>{
+ if($('#pres').classList.contains('on'))return;
+ const tg=(e.target.tagName||'').toLowerCase();const typing=['input','textarea','select'].includes(tg);
+ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveProject();return}
+ if(typing||$('#bulkModal').classList.contains('on'))return;
+ if(e.key==='ArrowLeft')select(state.cur-1);
+ if(e.key==='ArrowRight')select(state.cur+1);
+});
+
+/* ============ মেনু ============ */
+function closeMenus(){document.querySelectorAll('.menu.open').forEach(m=>m.classList.remove('open'))}
+document.querySelectorAll('[data-menu]').forEach(b=>b.addEventListener('click',e=>{
+ e.stopPropagation();
+ const m=document.getElementById(b.dataset.menu);const was=m.classList.contains('open');closeMenus();
+ if(!was){
+  m.classList.add('open');const r=b.getBoundingClientRect();
+  m.style.top=(r.bottom+8)+'px';m.style.right=Math.max(8,window.innerWidth-r.right)+'px';m.style.left='auto';
+ }
+}));
+document.addEventListener('click',e=>{if(!e.target.closest('.menu'))closeMenus()});
+
+/* প্রজেক্ট সেভ / লোড / নতুন */
+function download(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
+const deckName=()=>($('#deckName').value.trim()||'slides').replace(/[\\/:*?"<>|]/g,'-');
+function saveProject(){download(new Blob([JSON.stringify({v:2,g:state.g,slides:state.slides})],{type:'application/json'}),deckName()+'.json');toast('প্রজেক্ট ফাইল ডাউনলোড হয়েছে')}
+$('#btnSave').onclick=()=>{closeMenus();saveProject()};
+$('#loadFile').addEventListener('change',e=>{
+ closeMenus();const f=e.target.files[0];if(!f)return;const fr=new FileReader();
+ fr.onload=()=>{try{const d=JSON.parse(fr.result);if(!d.slides||!d.slides.length)throw 0;Object.assign(state.g,DEFAULT_G,d.g);state.slides=d.slides;state.cur=0;renderPanel();renderMain();renderThumbs(true);toast('প্রজেক্ট খোলা হয়েছে')}catch(err){toast('ফাইলটি পড়া যায়নি')}};
+ fr.readAsText(f);e.target.value='';
+});
+$('#btnNew').onclick=()=>{
+ closeMenus();
+ if(!confirm('সব স্লাইড মুছে নতুন খালি প্রজেক্ট শুরু করবেন? (আগে "প্রজেক্ট সেভ" করে নিতে পারেন)'))return;
+ state.slides=[mk.cover()];state.slides[0].pre='অধ্যায়';state.cur=0;renderPanel();renderMain();renderThumbs(true);
+};
+
+/* ============ একসাথে অনেক MCQ ============ */
+const LBL={'ক':0,'খ':1,'গ':2,'ঘ':3,'a':0,'b':1,'c':2,'d':3,'১':0,'২':1,'৩':2,'৪':3,'1':0,'2':1,'3':2,'4':3};
+function parseMCQ(text){
+ const out=[];
+ const blocks=text.replace(/\r/g,'').split(/\n\s*\n+/).map(b=>b.trim()).filter(Boolean);
+ const optRe=/^\(?\s*([কখগঘA-Da-d])\s*[\)\.\:।]\s*(.+)$/;
+ const optRe2=/^\(\s*([১২৩৪1-4])\s*\)\s*(.+)$/;
+ const ansRe=/^(?:সঠিক\s*উত্তর|উত্তর|উঃ|ans(?:wer)?)\s*[:：\-–=]?\s*\(?\s*([কখগঘA-Da-d১২৩৪1-4])\s*\)?/i;
+ for(const b of blocks){
+  const lines=b.split('\n').map(l=>l.trim()).filter(Boolean);
+  const q=[lines[0].replace(/^[\d০-৯]+\s*[\.\)।]\s*/,'')];const opts=[];let correct=-1;
+  for(let i=1;i<lines.length;i++){
+   const l=lines[i];let m;
+   if((m=l.match(ansRe))){const v=LBL[m[1].toLowerCase()];correct=v===undefined?-1:v;continue}
+   if((m=l.match(optRe)||l.match(optRe2))){opts.push(m[2].trim());continue}
+   if(opts.length)opts[opts.length-1]+=' '+l;else q.push(l);
+  }
+  if(opts.length>=2){while(opts.length<4)opts.push('');out.push({q:q.join('\n'),options:opts.slice(0,4),correct:(correct>=0&&correct<4)?correct:-1})}
+ }
+ return out;
+}
+$('#btnBulk').onclick=()=>{$('#bulkModal').classList.add('on');setTimeout(()=>$('#bulkText').focus(),50)};
+$('#bulkX').onclick=()=>$('#bulkModal').classList.remove('on');
+$('#bulkText').addEventListener('input',()=>{
+ const n=parseMCQ($('#bulkText').value).length;
+ $('#bulkInfo').textContent=n?`${toBn(n)}টি প্রশ্ন পাওয়া গেছে — ${toBn(n)}টি MCQ স্লাইড হবে।`:'এখনো কোনো প্রশ্ন চেনা যায়নি। ওপরের উদাহরণের মতো লিখুন।';
+});
+$('#bulkGo').onclick=()=>{
+ const list=parseMCQ($('#bulkText').value);
+ if(!list.length){toast('কোনো প্রশ্ন পাওয়া যায়নি');return}
+ const ch=cc(),ti=ct()||'অধ্যায়ের নাম',show=$('#bulkShow').checked;
+ const slides=list.map(x=>({...mk.mcq(),chapter:ch,title:ti,q:x.q,options:x.options,correct:x.correct,showAnswer:show}));
+ state.slides.splice(state.cur+1,0,...slides);state.cur++;
+ $('#bulkModal').classList.remove('on');$('#bulkText').value='';$('#bulkInfo').textContent='এখনো কিছু পেস্ট করা হয়নি।';
+ renderPanel();renderMain();renderThumbs(true);toast(`${toBn(slides.length)}টি MCQ স্লাইড যোগ হয়েছে`);
+};
+$('#bulkModal').addEventListener('click',e=>{if(e.target.id==='bulkModal')$('#bulkModal').classList.remove('on')});
+
+/* ============ এক্সপোর্ট ============ */
+const busy=t=>{$('#busyTxt').textContent=t;$('#busy').classList.add('on')};
+const unbusy=()=>$('#busy').classList.remove('on');
+async function ensureFonts(){
+ for(const n of new Set([state.g.fontBody,state.g.fontTitle])){
+  for(const w of [400,600,700,800]){try{await document.fonts.load(`${w} 24px "${n}"`,'অআকখগ')}catch(e){}}
+ }
+ await document.fonts.ready;
+}
+async function shot(idx,scale){
+ const st=$('#exportStage');st.innerHTML=slideHTML(state.slides[idx],idx,state.slides.length,{});
+ const el=st.firstElementChild;
+ await Promise.all([...el.querySelectorAll('img')].map(im=>im.decode?im.decode().catch(()=>{}):0));
+ await sleep(60);
+ return html2canvas(el,{scale,useCORS:true,backgroundColor:null,logging:false,width:1280,height:720});
+}
+document.querySelectorAll('[data-exp]').forEach(b=>b.addEventListener('click',async()=>{
+ closeMenus();
+ const kind=b.dataset.exp,sc=parseFloat($('#qual').value),n=state.slides.length,name=deckName();
+ try{
+  busy('প্রস্তুত হচ্ছে…');await ensureFonts();
+  if(kind==='png1'||kind==='jpg1'){
+   const c=await shot(state.cur,sc);const type=kind==='png1'?'image/png':'image/jpeg';
+   c.toBlob(bl=>{download(bl,`${name}-${state.cur+1}.${kind==='png1'?'png':'jpg'}`);unbusy()},type,.93);return;
+  }
+  if(kind==='pdf'){
+   const pdf=new window.jspdf.jsPDF({orientation:'landscape',unit:'px',format:[1280,720],hotfixes:['px_scaling']});
+   for(let i=0;i<n;i++){busy(`PDF হচ্ছে… ${toBn(i+1)}/${toBn(n)}`);const c=await shot(i,sc);if(i>0)pdf.addPage([1280,720],'landscape');pdf.addImage(c.toDataURL('image/jpeg',.92),'JPEG',0,0,1280,720)}
+   pdf.save(name+'.pdf');unbusy();return;
+  }
+  if(kind==='pptx'){
+   const p=new PptxGenJS();p.layout='LAYOUT_16x9';
+   for(let i=0;i<n;i++){busy(`PPTX হচ্ছে… ${toBn(i+1)}/${toBn(n)}`);const c=await shot(i,sc);const sl=p.addSlide();sl.addImage({data:c.toDataURL('image/jpeg',.92).replace(/^data:/,''),x:0,y:0,w:10,h:5.625})}
+   await p.writeFile({fileName:name+'.pptx'});unbusy();return;
+  }
+  if(kind==='zip'){
+   const zip=new JSZip();
+   for(let i=0;i<n;i++){busy(`ছবি হচ্ছে… ${toBn(i+1)}/${toBn(n)}`);const c=await shot(i,sc);zip.file(`${name}-${String(i+1).padStart(2,'0')}.png`,c.toDataURL('image/png').split(',')[1],{base64:true})}
+   busy('ZIP বানানো হচ্ছে…');download(await zip.generateAsync({type:'blob'}),name+'.zip');unbusy();return;
+  }
+ }catch(err){console.error(err);unbusy();toast('ডাউনলোডে সমস্যা হয়েছে — ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করুন')}
+}));
+
+/* ============ স্লাইড শো ============ */
+let presIdx=0,presReveal={};
+function presRender(){
+ const s=state.slides[presIdx];
+ $('#pres-in').innerHTML=slideHTML(s,presIdx,state.slides.length,{reveal:presReveal[presIdx]});presFit();
+}
+function presFit(){const k=Math.min(innerWidth/1280,innerHeight/720);const el=$('#pres-in');el.style.transform=`scale(${k})`;el.style.left=(innerWidth-1280*k)/2+'px';el.style.top=(innerHeight-720*k)/2+'px'}
+function presStart(){presIdx=state.cur;presReveal={};$('#pres').classList.add('on');presRender();try{$('#pres').requestFullscreen()}catch(e){}}
+function presStop(){$('#pres').classList.remove('on');if(document.fullscreenElement)document.exitFullscreen();select(presIdx)}
+$('#btnPresent').onclick=presStart;
+$('#pres').addEventListener('click',()=>{if(presIdx<state.slides.length-1){presIdx++;presRender()}else presStop()});
+document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&$('#pres').classList.contains('on'))presStop()});
+document.addEventListener('keydown',e=>{
+ if(!$('#pres').classList.contains('on'))return;
+ const k=e.key;
+ if(k==='ArrowRight'||k===' '||k==='PageDown'){e.preventDefault();if(presIdx<state.slides.length-1){presIdx++;presRender()}}
+ else if(k==='ArrowLeft'||k==='PageUp'){if(presIdx>0){presIdx--;presRender()}}
+ else if(k==='r'||k==='R'){const s=state.slides[presIdx];presReveal[presIdx]=!(presReveal[presIdx]!==undefined?presReveal[presIdx]:s.showAnswer);presRender()}
+ else if(k==='Escape')presStop();
+});
+
+/* ============ শুরু ============ */
+(function init(){
+ try{const d=JSON.parse(localStorage.getItem('slideStudioV2')||'null');if(d&&d.slides&&d.slides.length){Object.assign(state.g,DEFAULT_G,d.g);state.slides=d.slides}}catch(e){}
+ renderPanel();renderMain();renderThumbs(true);
+ if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{renderMain();renderThumbs()});
+ setTimeout(fit,120);
+})();
+</script>
+</body>
+</html>
